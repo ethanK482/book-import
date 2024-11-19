@@ -22,7 +22,10 @@ export class AppController {
     if (!file) {
       throw new Error('File is required');
     }
-    const data = await this.appService.processExcelFile(file.buffer);
+    const data = await this.appService.processExcelFile(
+      file.buffer,
+      file.mimetype,
+    );
     return { data };
   }
 }

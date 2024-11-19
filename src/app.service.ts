@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Book, BookDocument } from './schemas/book.schema';
 import { Model } from 'mongoose';
-import { read, utils } from 'xlsx';
+import { read, utils, WorkBook } from 'xlsx';
 @Injectable()
 export class AppService {
   constructor(@InjectModel(Book.name) private bookModel: Model<BookDocument>) {}
@@ -11,11 +11,8 @@ export class AppService {
     return await this.bookModel.find();
   }
 
-  async processExcelFile(fileBuffer: Buffer) {
-    const workbook = read(fileBuffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const data = utils.sheet_to_json(sheet) as Book[];
+  async processExcelFile(fileBuffer: Buffer, fileType: string) {
+    const data = this.readFile(fileBuffer, fileType);
 
     const bookNums = data.map((row) => row.bookNum).filter(Boolean);
     const existingBooks = await this.bookModel
@@ -73,5 +70,22 @@ export class AppService {
     }
 
     return results;
+  }
+  private readFile(fileBuffer: Buffer, fileType: string) {
+    let workbook: WorkBook;
+
+    if (fileType === 'text/csv') {
+      workbook = read(fileBuffer.toString(), { type: 'string' });
+    } else if (
+      fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) {
+      workbook = read(fileBuffer, { type: 'buffer' });
+    } else {
+      throw new Error('Unsupported file type');
+    }
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    return utils.sheet_to_json(sheet) as Book[];
   }
 }
